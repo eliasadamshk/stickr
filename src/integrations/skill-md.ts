@@ -46,10 +46,22 @@ stickr generate --spec '{"concept":"capybara sweeping old code into a bin","subj
 Fields: \`concept\`, \`subject\`, \`action\`, \`mood\` (required);
 \`caption\`, \`contextSummary\`, \`character\` (optional). Keep every field short.
 
-\`character\` picks a recurring Stickr mascot: \`otter\`, \`raccoon\`, \`cat\`,
-\`flamingo\`, or \`spider\`. Set it only when the user asks for one of them
-(for example, "/stickr with the otter"). Otherwise leave it out: Stickr applies
-the user's default mascot if they configured one.
+\`character\` picks a recurring Stickr mascot by name. Set it only when the
+user asks for a mascot (for example, "/stickr with the otter"). The built-in
+cast is \`otter\`, \`raccoon\`, \`cat\`, \`flamingo\`, and \`spider\`; users can
+add their own. When the user asks for a mascot, run \`stickr characters --json\`
+and use the \`name\` whose \`description\` best matches the request. If none
+matches, leave \`character\` out and describe the animal in \`subject\` instead.
+When the user does not ask for a mascot, leave \`character\` out: Stickr
+applies the user's default mascot if they configured one.
+
+Only create a character when the user explicitly asks to save a new recurring
+mascot. Use a short lowercase name and a one-line visual description:
+
+\`\`\`bash
+stickr characters add hedgehog --description "a round brown hedgehog with soft spines, a cream face, and a tiny dark nose"
+\`\`\`
+
 If \`stickr\` is not on PATH, ask the user to run \`stickr setup\`.
 
 ## 4. Report

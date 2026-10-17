@@ -7,6 +7,7 @@ export interface ParsedArgs {
 }
 
 const BOOLEAN_FLAGS = new Set(['dry-run', 'help', 'json', 'verbose']);
+const VALUE_FLAGS = new Set(['spec', 'skip', 'force', 'provider', 'character', 'description']);
 
 export function parseArgs(argv: string[]): ParsedArgs {
 	const command = argv[0] && !argv[0].startsWith('-') ? argv[0] : undefined;
@@ -71,7 +72,7 @@ export function validateArgs(
 		if (!allowedFlags.includes(name)) {
 			throw new StickrError(`Unknown option "--${name}" for "stickr ${command}".`);
 		}
-		const expectsValue = ['spec', 'skip', 'force', 'provider', 'character'].includes(name);
+		const expectsValue = VALUE_FLAGS.has(name);
 		if (expectsValue && (typeof value !== 'string' || value.length === 0)) {
 			throw new StickrError(`Option "--${name}" requires a value.`);
 		}

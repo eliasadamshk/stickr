@@ -34,6 +34,17 @@ Your agent chooses the subject and caption from the session. You can also ask fo
 
 The recurring cast: **otter, raccoon, cat, flamingo, and spider**. Set a favorite with `stickr setup --character otter`, or reset it with `stickr setup --character none`.
 
+Add your own mascots, and your agent picks them up automatically:
+
+```bash
+stickr characters                       # built-in and custom mascots
+stickr characters add hedgehog --description "a round brown hedgehog with soft spines and a cream face"
+stickr characters edit hedgehog --description "..."
+stickr characters remove hedgehog
+```
+
+Custom characters live in `~/.stickr/characters.json` and are drawn in the same mascot style as the built-in cast. Run `stickr setup` again after upgrading so your agent learns about them.
+
 ### From real debugging sessions
 
 | A cardboard stream fooled the API | A missing await caused a test race |

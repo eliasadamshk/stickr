@@ -1,3 +1,4 @@
+import { requireCharacter } from '../characters.js';
 import { copyImageToClipboard } from '../clipboard.js';
 import { configPath, loadConfig } from '../config.js';
 import { StickrError } from '../errors.js';
@@ -65,6 +66,7 @@ export async function runGenerate(options: {
 	// The configured default mascot applies unless the spec names its own.
 	const spec: StickerSpec =
 		input.character || !config.character ? input : { ...input, character: config.character };
+	const character = spec.character ? requireCharacter(spec.character) : undefined;
 	const provider =
 		options.provider ??
 		(await createProvider(parseProviderName(options.providerName ?? config.provider)));
@@ -73,10 +75,9 @@ export async function runGenerate(options: {
 	let usedPrompt = '';
 	let lastError = '';
 	for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+		const promptOptions = { background: provider.background, character };
 		const prompt =
-			attempt === 1
-				? buildPrompt(spec, provider.background)
-				: buildRetryPrompt(spec, provider.background);
+			attempt === 1 ? buildPrompt(spec, promptOptions) : buildRetryPrompt(spec, promptOptions);
 		let image: Buffer;
 		try {
 			image = await provider.generate(prompt);

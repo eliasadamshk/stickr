@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { flagValue, parseArgs, splitList, validateArgs } from './args.js';
+import { runCharacterAction, runListCharacters } from './commands/characters.js';
 import { generateAndReport } from './commands/generate.js';
 import { runInspect } from './commands/inspect.js';
 import { runList } from './commands/list.js';
@@ -19,14 +20,21 @@ Usage:
   stickr reveal <id>        Reveal the sticker file in Finder/file manager
   stickr copy <id>          Copy the sticker image to the clipboard
   stickr inspect <id>       Show sticker metadata, files, and prompt info
+  stickr characters         List the mascots available to stickers
+  stickr characters add <name> --description "<look>"
+                            Create a custom mascot
+  stickr characters edit <name> --description "<look>"
+                            Change a custom mascot's description
+  stickr characters remove <name>
+                            Delete a custom mascot
 
 Setup options:
   --skip "<Name>"           Don't install for this agent (e.g. "Codex")
   --force "<Name>"          Install even if not detected
   --dry-run                 Show what would happen without writing
   --provider <name>         Save the image provider: openai or gemini
-  --character <name>        Save a default mascot: otter, raccoon, cat,
-                            flamingo, spider, or none
+  --character <name>        Save a default mascot (see "stickr characters"),
+                            or none to clear it
 
 Generate options:
   --json                    Print the complete sticker record as JSON
@@ -34,6 +42,9 @@ Generate options:
 
 Inspect options:
   --verbose                 Include the full image prompt
+
+Characters options:
+  --json                    Print the character list as JSON
 
 Learn more: run "/stickr" in Claude Code or mention "$stickr" in Codex.
 `;
@@ -109,6 +120,20 @@ async function main(): Promise<number> {
 			validateArgs(command, positional, flags, ['verbose'], 1);
 			await runInspect(positional[0] ?? '', flags.has('verbose'));
 			return 0;
+		case 'characters': {
+			if (positional.length === 0) {
+				validateArgs(command, positional, flags, ['json'], 0);
+				runListCharacters(flags.has('json'));
+				return 0;
+			}
+			validateArgs(command, positional, flags, ['description'], 2);
+			runCharacterAction({
+				action: positional[0],
+				name: positional[1],
+				description: flagValue(flags, 'description'),
+			});
+			return 0;
+		}
 		default:
 			if (argv.length === 0) {
 				console.log(HELP);

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { addCharacter } from '../src/characters.js';
 import { runSetup } from '../src/commands/setup.js';
 import { claudeIntegration, codexIntegration } from '../src/integrations/agents.js';
 import { STICKR_SKILL_MARKDOWN } from '../src/integrations/skill-md.js';
@@ -129,6 +130,15 @@ describe('setup', () => {
 		} finally {
 			delete process.env.GEMINI_API_KEY;
 		}
+	});
+
+	it('accepts a custom character as the default and rejects unknown ones', async () => {
+		addCharacter('hedgehog', 'a round brown hedgehog with soft spines');
+		await captureStdout(() => runSetup({ force: ['Codex'], character: 'Hedgehog' }));
+		expect(JSON.parse(readFileSync(join(home, 'config.json'), 'utf8')).character).toBe('hedgehog');
+		await expect(runSetup({ force: ['Codex'], character: 'dragon' })).rejects.toThrow(
+			/Unknown character "dragon"/,
+		);
 	});
 
 	it('dry run writes nothing', async () => {

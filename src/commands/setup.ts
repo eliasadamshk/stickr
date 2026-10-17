@@ -1,4 +1,4 @@
-import { CHARACTER_NAMES, type CharacterName } from '../characters.js';
+import { requireCharacter } from '../characters.js';
 import { ensureConfig, loadConfig, saveConfig, stickrHome } from '../config.js';
 import { KEY_ENV_VARS, readStoredKey } from '../credentials.js';
 import { StickrError } from '../errors.js';
@@ -45,15 +45,18 @@ function parseChoice<T extends string>(value: string, allowed: readonly T[], opt
 	return match;
 }
 
+function parseCharacterOption(value: string | undefined): string | undefined {
+	if (value === undefined) return undefined;
+	const name = value.toLowerCase();
+	return name === 'none' ? name : requireCharacter(name).name;
+}
+
 export async function runSetup(options: SetupOptions = {}): Promise<void> {
 	const provider =
 		options.provider === undefined
 			? undefined
 			: parseChoice(options.provider, PROVIDER_NAMES, '--provider');
-	const character =
-		options.character === undefined
-			? undefined
-			: parseChoice(options.character, [...CHARACTER_NAMES, 'none'], '--character');
+	const character = parseCharacterOption(options.character);
 	validateAgentNames(options.skip, '--skip');
 	validateAgentNames(options.force, '--force');
 	const conflict = options.skip?.find((name) => hasFlag(name, options.force));
@@ -73,7 +76,7 @@ export async function runSetup(options: SetupOptions = {}): Promise<void> {
 	if (provider || character) {
 		const next = { ...config, provider: activeProvider };
 		if (character === 'none') delete next.character;
-		else if (character) next.character = character as CharacterName;
+		else if (character) next.character = character;
 		if (!options.dryRun) saveConfig(next);
 		console.log(
 			`${CHECK} Image provider: ${activeProvider}; character: ${next.character ?? 'chosen per sticker'}`,

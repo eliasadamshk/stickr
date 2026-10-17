@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { requireCharacter } from '../src/characters.js';
 import { buildPrompt, buildRetryPrompt } from '../src/prompt.js';
 import { parseStickerSpec } from '../src/spec.js';
 
@@ -88,14 +89,24 @@ describe('prompt generation', () => {
 });
 
 describe('characters', () => {
-	it('draws the named mascot instead of the free-form subject', () => {
-		const prompt = buildPrompt(parseStickerSpec({ ...validSpec, character: 'otter' }));
+	it('draws the resolved mascot instead of the free-form subject', () => {
+		const spec = parseStickerSpec({ ...validSpec, character: 'otter' });
+		const prompt = buildPrompt(spec, { character: requireCharacter('otter') });
 		expect(prompt).toContain('Subject: a chubby brown sea otter');
 		expect(prompt).toContain('Stickr mascot style');
 		expect(prompt).not.toContain('cute capybara');
 	});
 
-	it('rejects characters outside the cast', () => {
-		expect(() => parseStickerSpec({ ...validSpec, character: 'dragon' })).toThrow(/character/);
+	it('draws a custom mascot from its description', () => {
+		const prompt = buildPrompt(parseStickerSpec(validSpec), {
+			character: { name: 'hedgehog', description: 'a round brown hedgehog', builtIn: false },
+		});
+		expect(prompt).toContain('Subject: a round brown hedgehog');
+		expect(prompt).toContain('Stickr mascot style');
+	});
+
+	it('rejects malformed character names', () => {
+		expect(() => parseStickerSpec({ ...validSpec, character: 'Big Dragon' })).toThrow(/character/);
+		expect(parseStickerSpec({ ...validSpec, character: 'dragon' }).character).toBe('dragon');
 	});
 });

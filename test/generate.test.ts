@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { addCharacter } from '../src/characters.js';
 import { generateAndReport, runGenerate } from '../src/commands/generate.js';
+import { saveConfig } from '../src/config.js';
 import { buildRetryPrompt } from '../src/prompt.js';
 import type { ImageProvider } from '../src/provider/types.js';
 import type { StickerSpec } from '../src/spec.js';
@@ -154,6 +156,31 @@ describe('generate', () => {
 		await expect(runGenerate({ spec: JSON.stringify(specJson), provider })).rejects.toThrow(
 			/Image generation failed/,
 		);
+	});
+
+	it('draws a custom character named by the spec', async () => {
+		addCharacter('hedgehog', 'a round brown hedgehog with soft spines');
+		const record = await runGenerate({
+			spec: JSON.stringify({ ...specJson, character: 'hedgehog' }),
+			provider: fakeProvider(),
+		});
+		expect(record.spec.character).toBe('hedgehog');
+		expect(record.prompt).toContain('Subject: a round brown hedgehog with soft spines');
+	});
+
+	it('applies the configured default character', async () => {
+		saveConfig({ autoCopy: false, provider: 'openai', character: 'cat' });
+		const record = await runGenerate({ spec: JSON.stringify(specJson), provider: fakeProvider() });
+		expect(record.spec.character).toBe('cat');
+		expect(record.prompt).toContain('orange tabby cat');
+	});
+
+	it('rejects an unknown character before calling the provider', async () => {
+		const provider = fakeProvider();
+		await expect(
+			runGenerate({ spec: JSON.stringify({ ...specJson, character: 'dragon' }), provider }),
+		).rejects.toThrow(/Unknown character "dragon"/);
+		expect(provider.calls).toBe(0);
 	});
 
 	it('prints exactly one machine-readable record in JSON mode', async () => {

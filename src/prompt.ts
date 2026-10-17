@@ -1,4 +1,4 @@
-import { CHARACTER_STYLE, CHARACTERS } from './characters.js';
+import { CHARACTER_STYLE, type Character } from './characters.js';
 import type { StickerSpec } from './spec.js';
 
 /**
@@ -50,10 +50,16 @@ function captionBlock(caption: string | undefined): string {
 	].join('\n');
 }
 
-function subjectBlock(spec: StickerSpec): string[] {
-	if (!spec.character) return [`Subject: ${spec.subject}`];
+export interface PromptOptions {
+	background?: BackgroundMode;
+	/** The resolved mascot named by the spec, if any. */
+	character?: Character;
+}
+
+function subjectBlock(spec: StickerSpec, character: Character | undefined): string[] {
+	if (!character) return [`Subject: ${spec.subject}`];
 	return [
-		`Subject: ${CHARACTERS[spec.character]}`,
+		`Subject: ${character.description}`,
 		CHARACTER_STYLE,
 		'If the concept mentions a different animal or character, draw this character instead.',
 	];
@@ -63,12 +69,15 @@ function subjectBlock(spec: StickerSpec): string[] {
  * Build the image-model prompt from stable house style + StickerSpec.
  * Only StickerSpec content is used — never raw session material.
  */
-export function buildPrompt(spec: StickerSpec, background: BackgroundMode = 'transparent'): string {
+export function buildPrompt(
+	spec: StickerSpec,
+	{ background = 'transparent', character }: PromptOptions = {},
+): string {
 	return [
 		HOUSE_STYLE,
 		'',
 		`Concept: ${spec.concept}`,
-		...subjectBlock(spec),
+		...subjectBlock(spec, character),
 		`Action: ${spec.action}`,
 		`Mood: ${spec.mood}`,
 		captionBlock(spec.caption),
@@ -81,20 +90,17 @@ export function buildPrompt(spec: StickerSpec, background: BackgroundMode = 'tra
  * Stronger transparency instructions used for the single retry when the
  * first attempt fails validation.
  */
-export function buildRetryPrompt(
-	spec: StickerSpec,
-	background: BackgroundMode = 'transparent',
-): string {
-	if (background === 'chroma-key') {
+export function buildRetryPrompt(spec: StickerSpec, options: PromptOptions = {}): string {
+	if (options.background === 'chroma-key') {
 		return [
-			buildPrompt(spec, background),
+			buildPrompt(spec, options),
 			'',
 			'CRITICAL: Every pixel outside the die-cut border must be the exact same flat magenta (#FF00FF).',
 			'The cream (#F3EAD6) border must fully enclose the subject with no gaps.',
 		].join('\n');
 	}
 	return [
-		buildPrompt(spec),
+		buildPrompt(spec, options),
 		'',
 		'CRITICAL: The final image must have a fully transparent alpha channel outside the sticker.',
 		'No background color of any kind — not white, not gray, not a subtle gradient.',
