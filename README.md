@@ -55,6 +55,8 @@ Custom characters live in `~/.stickr/characters.json` and are drawn in the same 
 
 Every sticker is saved in `~/.stickr/stickers/<id>/`: a full-quality `original.png`, a 512×512 `sticker.png`, and a messaging-friendly `sticker.webp`.
 
+Run `stickr` on its own to browse your library interactively. You can preview, filter, copy, open, and delete stickers, manage characters, and change settings. Previews use truecolor half-block characters, so they look best in a terminal with 24-bit color.
+
 ```bash
 stickr list             # recent stickers (--json for scripts)
 stickr open <id>        # preview

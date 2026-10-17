@@ -12,6 +12,8 @@ import { StickrError } from './errors.js';
 const HELP = `stickr: context-aware stickers from coding-agent conversations
 
 Usage:
+  stickr                    Browse stickers, characters, and settings
+                            interactively (or run "stickr browse")
   stickr setup              Install the Stickr skill into detected coding agents
   stickr generate --spec '<json>'
                             Generate a sticker from a StickerSpec JSON
@@ -62,6 +64,19 @@ process.stdout.on('error', (error: NodeJS.ErrnoException) => {
 	if (error.code === 'EPIPE') process.exit(0);
 	throw error;
 });
+
+function isInteractive(): boolean {
+	return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+async function browse(): Promise<void> {
+	if (!isInteractive()) {
+		throw new StickrError('Interactive mode needs a terminal. Run "stickr --help" for commands.');
+	}
+	// Loaded lazily so scripted commands such as generate never pay for React.
+	const { runTui } = await import('./tui/index.js');
+	await runTui();
+}
 
 async function main(): Promise<number> {
 	const argv = process.argv.slice(2);
@@ -146,9 +161,14 @@ async function main(): Promise<number> {
 			});
 			return 0;
 		}
+		case 'browse':
+			validateArgs(command, positional, flags, [], 0);
+			await browse();
+			return 0;
 		default:
 			if (argv.length === 0) {
-				console.log(HELP);
+				if (isInteractive()) await browse();
+				else console.log(HELP);
 				return 0;
 			}
 			console.error(HELP);
