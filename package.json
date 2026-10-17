@@ -1,0 +1,52 @@
+{
+	"name": "stickr",
+	"version": "0.1.0",
+	"description": "Context-aware stickers from coding-agent conversations.",
+	"type": "module",
+	"license": "MIT",
+	"packageManager": "pnpm@10.33.0",
+	"keywords": [
+		"ai",
+		"coding-agent",
+		"image-generation",
+		"sticker"
+	],
+	"bin": {
+		"stickr": "dist/cli.js"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest run",
+		"lint": "biome check src test vitest.config.ts",
+		"format": "biome check --write src test vitest.config.ts",
+		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+		"prepublishOnly": "pnpm check"
+	},
+	"dependencies": {
+		"openai": "^7.10.0",
+		"sharp": "^0.35.5",
+		"zod": "^4.5.4"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.12",
+		"@types/node": "^22.20.0",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.0"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
+	}
+}

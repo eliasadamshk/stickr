@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.stickr/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+/.claude/
+/AGENTS.md

@@ -1,0 +1,36 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"suspicious": {
+				"noConsole": { "level": "off", "options": { "allow": ["log"] } }
+			}
+		}
+	},
+	"files": {
+		"includes": ["**", "!**/dist/**", "!**/node_modules/**"]
+	},
+	"overrides": [
+		{
+			"includes": ["**/test/**"],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noDelete": "off"
+					}
+				}
+			}
+		}
+	],
+	"javascript": {
+		"formatter": {
+			"enabled": true,
+			"indentWidth": 2,
+			"lineWidth": 100,
+			"quoteStyle": "single"
+		}
+	}
+}
