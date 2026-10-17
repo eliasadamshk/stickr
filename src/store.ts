@@ -209,3 +209,24 @@ export function listStickers(): { records: StickerRecord[]; corrupt: string[] } 
 	records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 	return { records, corrupt };
 }
+
+/**
+ * Delete a stored sticker, including one whose metadata is unreadable. The
+ * directory is renamed out of the listing first so a failed removal never
+ * leaves a half-deleted sticker behind.
+ */
+export function deleteSticker(partialId: string): string {
+	const dir = resolveStickerDir(partialId);
+	const id = basename(dir);
+	const trashDir = join(stickersDir(), `.trash-${id}-${process.pid}`);
+	try {
+		renameSync(dir, trashDir);
+	} catch (error) {
+		throw new StickrError(
+			`Could not delete sticker "${id}": ${error instanceof Error ? error.message : error}`,
+			{ cause: error },
+		);
+	}
+	rmSync(trashDir, { recursive: true, force: true });
+	return id;
+}

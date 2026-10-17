@@ -22,8 +22,16 @@ export function formatListRow(record: StickerRecord, now = new Date()): string {
 	return `${record.id}  ${relativeTime(record.createdAt, now).padEnd(10)}  ${caption}`;
 }
 
-export function runList(): void {
+export function runList(json = false): void {
 	const { records, corrupt } = listStickers();
+	if (json) {
+		// stderr keeps stdout a single parseable JSON document.
+		for (const name of corrupt) {
+			console.error(`Skipped unreadable sticker directory: ${name}`);
+		}
+		console.log(JSON.stringify(records, null, 2));
+		return;
+	}
 	for (const name of corrupt) {
 		console.log(`??????  corrupt   skipped unreadable sticker directory: ${name}`);
 	}

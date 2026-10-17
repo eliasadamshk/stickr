@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { flagValue, parseArgs, splitList, validateArgs } from './args.js';
 import { runCharacterAction, runListCharacters } from './commands/characters.js';
+import { runDelete } from './commands/delete.js';
 import { generateAndReport } from './commands/generate.js';
 import { runInspect } from './commands/inspect.js';
 import { runList } from './commands/list.js';
@@ -20,6 +21,7 @@ Usage:
   stickr reveal <id>        Reveal the sticker file in Finder/file manager
   stickr copy <id>          Copy the sticker image to the clipboard
   stickr inspect <id>       Show sticker metadata, files, and prompt info
+  stickr delete <id>        Delete a sticker and its files
   stickr characters         List the mascots available to stickers
   stickr characters add <name> --description "<look>"
                             Create a custom mascot
@@ -39,6 +41,12 @@ Setup options:
 Generate options:
   --json                    Print the complete sticker record as JSON
   --provider <name>         Image provider: openai (default) or gemini
+
+List options:
+  --json                    Print the sticker records as JSON
+
+Delete options:
+  --yes                     Delete without asking for confirmation
 
 Inspect options:
   --verbose                 Include the full image prompt
@@ -101,8 +109,12 @@ async function main(): Promise<number> {
 			return 0;
 		}
 		case 'list':
-			validateArgs(command, positional, flags, [], 0);
-			runList();
+			validateArgs(command, positional, flags, ['json'], 0);
+			runList(flags.has('json'));
+			return 0;
+		case 'delete':
+			validateArgs(command, positional, flags, ['yes'], 1);
+			await runDelete(positional[0], { yes: flags.has('yes') });
 			return 0;
 		case 'open':
 			validateArgs(command, positional, flags, [], 1);

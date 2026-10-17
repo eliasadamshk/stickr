@@ -56,11 +56,12 @@ Custom characters live in `~/.stickr/characters.json` and are drawn in the same 
 Every sticker is saved in `~/.stickr/stickers/<id>/`: a full-quality `original.png`, a 512×512 `sticker.png`, and a messaging-friendly `sticker.webp`.
 
 ```bash
-stickr list             # recent stickers
+stickr list             # recent stickers (--json for scripts)
 stickr open <id>        # preview
 stickr copy <id>        # copy again
 stickr reveal <id>      # show in your file manager
 stickr inspect <id>     # metadata and image details
+stickr delete <id>      # delete after confirming (--yes to skip)
 stickr --help           # all commands and options
 ```
 
