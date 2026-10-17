@@ -13,6 +13,7 @@ export type { ImageProvider };
  */
 export class OpenAIImageProvider implements ImageProvider {
 	readonly model = OPENAI_IMAGE_MODEL;
+	readonly background = 'transparent';
 	private client: OpenAI;
 
 	constructor(apiKey: string) {

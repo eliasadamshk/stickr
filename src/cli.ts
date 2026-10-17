@@ -24,9 +24,11 @@ Setup options:
   --skip "<Name>"           Don't install for this agent (e.g. "Codex")
   --force "<Name>"          Install even if not detected
   --dry-run                 Show what would happen without writing
+  --provider <name>         Save the image provider: openai or gemini
 
 Generate options:
   --json                    Print the complete sticker record as JSON
+  --provider <name>         Image provider: openai (default) or gemini
 
 Inspect options:
   --verbose                 Include the full image prompt
@@ -57,20 +59,25 @@ async function main(): Promise<number> {
 
 	switch (command) {
 		case 'setup': {
-			validateArgs(command, positional, flags, ['skip', 'force', 'dry-run'], 0);
+			validateArgs(command, positional, flags, ['skip', 'force', 'dry-run', 'provider'], 0);
 			const skip = flagValue(flags, 'skip');
 			const force = flagValue(flags, 'force');
 			await runSetup({
 				skip: skip ? splitList(skip) : undefined,
 				force: force ? splitList(force) : undefined,
 				dryRun: flags.has('dry-run'),
+				provider: flagValue(flags, 'provider'),
 			});
 			return 0;
 		}
 		case 'generate': {
-			validateArgs(command, positional, flags, ['spec', 'json'], 0);
+			validateArgs(command, positional, flags, ['spec', 'json', 'provider'], 0);
 			const spec = flagValue(flags, 'spec');
-			await generateAndReport({ spec, json: flags.has('json') });
+			await generateAndReport({
+				spec,
+				json: flags.has('json'),
+				providerName: flagValue(flags, 'provider'),
+			});
 			return 0;
 		}
 		case 'list':

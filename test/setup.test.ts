@@ -110,6 +110,19 @@ describe('setup', () => {
 		expect(output).toContain('Ready.');
 	});
 
+	it('saves the chosen provider and asks for that provider key', async () => {
+		process.env.GEMINI_API_KEY = 'gemini-test-key-1234567890';
+		try {
+			const output = await captureStdout(() => runSetup({ force: ['Codex'], provider: 'gemini' }));
+			expect(output).toContain('GEMINI_API_KEY found in environment');
+			expect(JSON.parse(readFileSync(join(home, 'config.json'), 'utf8'))).toMatchObject({
+				provider: 'gemini',
+			});
+		} finally {
+			delete process.env.GEMINI_API_KEY;
+		}
+	});
+
 	it('dry run writes nothing', async () => {
 		delete process.env.OPENAI_API_KEY;
 		const output = await captureStdout(() =>

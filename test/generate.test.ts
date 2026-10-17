@@ -36,6 +36,7 @@ function fakeProvider(
 	let calls = 0;
 	return {
 		model: 'fake-image-model',
+		background: 'transparent',
 		get calls() {
 			return calls;
 		},

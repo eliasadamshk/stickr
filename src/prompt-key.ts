@@ -1,20 +1,28 @@
 import readline from 'node:readline/promises';
 import { type Readable, Writable } from 'node:stream';
-import { looksLikeApiKey, saveStoredKey } from './credentials.js';
+import { KEY_ENV_VARS, type KeyProvider, looksLikeApiKey, saveStoredKey } from './credentials.js';
 import { StickrError } from './errors.js';
 
+const PROVIDER_LABELS: Record<KeyProvider, string> = { openai: 'OpenAI', gemini: 'Gemini' };
+
+/** Gemini key formats vary, so only reject values that cannot be a key. */
+function looksLikeKey(provider: KeyProvider, value: string): boolean {
+	return provider === 'openai' ? looksLikeApiKey(value) : value.length >= 20 && !/\s/.test(value);
+}
+
 /**
- * Interactively ask for an OpenAI API key with muted (hidden) input and
+ * Interactively ask for a provider API key with muted (hidden) input and
  * persist it via the most secure store available on this platform.
  * Returns the store name, or null when the user skips or storage fails.
  */
-export async function promptForApiKey(): Promise<string | null> {
+export async function promptForApiKey(provider: KeyProvider = 'openai'): Promise<string | null> {
 	if (!process.stdin.isTTY || !process.stdout.isTTY) {
 		return null;
 	}
+	const label = PROVIDER_LABELS[provider];
 
 	process.stdout.write(
-		'No OpenAI API key found.\n' +
+		`No ${label} API key found.\n` +
 			'Paste your key now (input hidden) to store it securely, or press Enter\n' +
 			'to skip and configure it later.\n',
 	);
@@ -22,18 +30,22 @@ export async function promptForApiKey(): Promise<string | null> {
 	for (;;) {
 		const key = await askHidden('API key: ');
 		if (!key) {
-			console.log('Skipped. Set OPENAI_API_KEY in your shell before generating stickers.\n');
+			console.log(
+				`Skipped. Set ${KEY_ENV_VARS[provider]} in your shell before generating stickers.\n`,
+			);
 			return null;
 		}
-		if (!looksLikeApiKey(key)) {
+		if (!looksLikeKey(provider, key)) {
 			console.log(
-				'That doesn\'t look like an OpenAI API key (expected to start with "sk-"). Try again or press Enter to skip.',
+				provider === 'openai'
+					? 'That doesn\'t look like an OpenAI API key (expected to start with "sk-"). Try again or press Enter to skip.'
+					: "That doesn't look like a Gemini API key. Try again or press Enter to skip.",
 			);
 			continue;
 		}
 
 		try {
-			const store = await saveStoredKey(key);
+			const store = await saveStoredKey(key, undefined, provider);
 			console.log(`✓ API key saved to ${store}.\n`);
 			return store;
 		} catch (error) {

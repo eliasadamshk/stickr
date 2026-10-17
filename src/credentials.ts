@@ -38,49 +38,74 @@ interface CredentialStore {
 
 // Platform keystores
 
-const KEYCHAIN_SERVICE = 'stickr';
-const KEYCHAIN_ACCOUNT = 'openai-api-key';
-const SECRET_TOOL_ATTRS = ['service', 'stickr', 'account', KEYCHAIN_ACCOUNT];
+/** Image providers that need an API key. */
+export type KeyProvider = 'openai' | 'gemini';
 
-async function readMacOSKeychain(runner: Runner): Promise<string | null> {
+const KEYCHAIN_SERVICE = 'stickr';
+const KEY_ACCOUNTS: Record<KeyProvider, string> = {
+	openai: 'openai-api-key',
+	gemini: 'gemini-api-key',
+};
+export const KEY_ENV_VARS: Record<KeyProvider, string> = {
+	openai: 'OPENAI_API_KEY',
+	gemini: 'GEMINI_API_KEY',
+};
+
+function secretToolAttrs(provider: KeyProvider): string[] {
+	return ['service', KEYCHAIN_SERVICE, 'account', KEY_ACCOUNTS[provider]];
+}
+
+async function readMacOSKeychain(runner: Runner, provider: KeyProvider): Promise<string | null> {
 	const { stdout } = await runner('security', [
 		'find-generic-password',
 		'-s',
 		KEYCHAIN_SERVICE,
 		'-a',
-		KEYCHAIN_ACCOUNT,
+		KEY_ACCOUNTS[provider],
 		'-w',
 	]);
 	return stdout.trim() || null;
 }
 
-async function saveMacOSKeychain(key: string, runner: Runner): Promise<void> {
+async function saveMacOSKeychain(
+	key: string,
+	runner: Runner,
+	provider: KeyProvider,
+): Promise<void> {
 	// Keeping the secret out of argv prevents it from appearing in process listings.
+	// A bare -w makes `security` ask for the password and then a retype, so send it twice.
 	await runner(
 		'security',
-		['add-generic-password', '-s', KEYCHAIN_SERVICE, '-a', KEYCHAIN_ACCOUNT, '-U', '-w'],
-		{ input: `${key}\n` },
+		['add-generic-password', '-s', KEYCHAIN_SERVICE, '-a', KEY_ACCOUNTS[provider], '-U', '-w'],
+		{ input: `${key}\n${key}\n` },
 	);
 }
 
-async function readSecretService(runner: Runner): Promise<string | null> {
-	const { stdout } = await runner('secret-tool', ['lookup', ...SECRET_TOOL_ATTRS]);
+async function readSecretService(runner: Runner, provider: KeyProvider): Promise<string | null> {
+	const { stdout } = await runner('secret-tool', ['lookup', ...secretToolAttrs(provider)]);
 	return stdout.trim() || null;
 }
 
-async function saveSecretService(key: string, runner: Runner): Promise<void> {
-	await runner('secret-tool', ['store', '--label=stickr openai api key', ...SECRET_TOOL_ATTRS], {
-		input: key,
-	});
+async function saveSecretService(
+	key: string,
+	runner: Runner,
+	provider: KeyProvider,
+): Promise<void> {
+	await runner(
+		'secret-tool',
+		['store', `--label=stickr ${provider} api key`, ...secretToolAttrs(provider)],
+		{ input: key },
+	);
 }
 
 /** DPAPI-encrypted key file. Resolved dynamically so it follows STICKR_HOME. */
-function winEncFile(): string {
-	return join(stickrHome(), 'apikey.dpapi');
+function winEncFile(provider: KeyProvider): string {
+	// The OpenAI file keeps its original name so existing installs still resolve.
+	return join(stickrHome(), provider === 'openai' ? 'apikey.dpapi' : `${provider}-apikey.dpapi`);
 }
 
-async function readWindowsDPAPI(runner: Runner): Promise<string | null> {
-	const file = winEncFile();
+async function readWindowsDPAPI(runner: Runner, provider: KeyProvider): Promise<string | null> {
+	const file = winEncFile(provider);
 	if (!existsSync(file)) return null;
 	const script = `$ErrorActionPreference='Stop'; $enc = Get-Content -LiteralPath '${file.replace(/'/g, "''")}' -Raw; $sec = ConvertTo-SecureString $enc; $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec); try { [Console]::Out.Write([Runtime.InteropServices.Marshal]::PtrToStringAuto($b)) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }`;
 	const { stdout } = await runner('powershell.exe', [
@@ -92,9 +117,9 @@ async function readWindowsDPAPI(runner: Runner): Promise<string | null> {
 	return stdout.trim() || null;
 }
 
-async function saveWindowsDPAPI(key: string, runner: Runner): Promise<void> {
+async function saveWindowsDPAPI(key: string, runner: Runner, provider: KeyProvider): Promise<void> {
 	mkdirSync(stickrHome(), { recursive: true });
-	const script = `$ErrorActionPreference='Stop'; $key = [Console]::In.ReadToEnd().Trim(); $sec = ConvertTo-SecureString $key -AsPlainText -Force; ConvertFrom-SecureString $sec | Set-Content -LiteralPath '${winEncFile().replace(/'/g, "''")}'`;
+	const script = `$ErrorActionPreference='Stop'; $key = [Console]::In.ReadToEnd().Trim(); $sec = ConvertTo-SecureString $key -AsPlainText -Force; ConvertFrom-SecureString $sec | Set-Content -LiteralPath '${winEncFile(provider).replace(/'/g, "''")}'`;
 	await runner('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
 		input: key,
 	});
@@ -102,25 +127,25 @@ async function saveWindowsDPAPI(key: string, runner: Runner): Promise<void> {
 
 // Public API
 
-function storeForPlatform(runner: Runner): CredentialStore | null {
+function storeForPlatform(runner: Runner, provider: KeyProvider): CredentialStore | null {
 	switch (process.platform) {
 		case 'darwin':
 			return {
 				name: 'macOS Keychain',
-				read: () => readMacOSKeychain(runner),
-				save: (key) => saveMacOSKeychain(key, runner),
+				read: () => readMacOSKeychain(runner, provider),
+				save: (key) => saveMacOSKeychain(key, runner, provider),
 			};
 		case 'linux':
 			return {
 				name: 'Linux Secret Service',
-				read: () => readSecretService(runner),
-				save: (key) => saveSecretService(key, runner),
+				read: () => readSecretService(runner, provider),
+				save: (key) => saveSecretService(key, runner, provider),
 			};
 		case 'win32':
 			return {
 				name: 'Windows DPAPI-encrypted file',
-				read: () => readWindowsDPAPI(runner),
-				save: (key) => saveWindowsDPAPI(key, runner),
+				read: () => readWindowsDPAPI(runner, provider),
+				save: (key) => saveWindowsDPAPI(key, runner, provider),
 			};
 		default:
 			return null;
@@ -134,8 +159,9 @@ function storeForPlatform(runner: Runner): CredentialStore | null {
  */
 export async function readStoredKey(
 	runner: Runner = defaultRunner,
+	provider: KeyProvider = 'openai',
 ): Promise<{ key: string; source: StoreName } | null> {
-	const store = storeForPlatform(runner);
+	const store = storeForPlatform(runner, provider);
 	if (!store) return null;
 	try {
 		const key = await store.read();
@@ -152,11 +178,12 @@ export async function readStoredKey(
 export async function saveStoredKey(
 	apiKey: string,
 	runner: Runner = defaultRunner,
+	provider: KeyProvider = 'openai',
 ): Promise<StoreName> {
-	const store = storeForPlatform(runner);
+	const store = storeForPlatform(runner, provider);
 	if (!store) {
 		throw new StickrError(
-			`Secure API key storage is not supported on ${process.platform}.\nSet OPENAI_API_KEY in your shell instead.`,
+			`Secure API key storage is not supported on ${process.platform}.\nSet ${KEY_ENV_VARS[provider]} in your shell instead.`,
 		);
 	}
 	try {
@@ -164,22 +191,23 @@ export async function saveStoredKey(
 		return store.name;
 	} catch (error) {
 		throw new StickrError(
-			`Could not store the API key in ${store.name}: ${error instanceof Error ? error.message : error}\nSet OPENAI_API_KEY in your shell instead.`,
+			`Could not store the API key in ${store.name}: ${error instanceof Error ? error.message : error}\nSet ${KEY_ENV_VARS[provider]} in your shell instead.`,
 			{ cause: error },
 		);
 	}
 }
 
 /**
- * Full resolution chain: OPENAI_API_KEY environment variable → stored key.
- * Returns null when nothing is configured.
+ * Full resolution chain: provider environment variable (e.g. OPENAI_API_KEY)
+ * → stored key. Returns null when nothing is configured.
  */
 export async function resolveApiKey(
 	runner: Runner = defaultRunner,
+	provider: KeyProvider = 'openai',
 ): Promise<{ key: string; source: 'environment' | StoreName } | null> {
-	const env = process.env.OPENAI_API_KEY?.trim();
+	const env = process.env[KEY_ENV_VARS[provider]]?.trim();
 	if (env) return { key: env, source: 'environment' };
-	const stored = await readStoredKey(runner);
+	const stored = await readStoredKey(runner, provider);
 	if (stored) return { key: stored.key, source: stored.source };
 	return null;
 }

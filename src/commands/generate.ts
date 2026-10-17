@@ -5,7 +5,8 @@ import { newStickerId } from '../ids.js';
 import { processSticker } from '../images/process.js';
 import { validateTransparency } from '../images/validate.js';
 import { buildPrompt, buildRetryPrompt, PROMPT_VERSION } from '../prompt.js';
-import { defaultProvider, type ImageProvider } from '../provider/openai.js';
+import { createProvider, PROVIDER_NAMES, type ProviderName } from '../provider/index.js';
+import type { ImageProvider } from '../provider/types.js';
 import { parseStickerSpec, type StickerSpec } from '../spec.js';
 import { type StickerRecord, writeSticker } from '../store.js';
 
@@ -44,18 +45,35 @@ async function readSpecInput(specFlag?: string): Promise<StickerSpec> {
 	return parseStickerSpec(parsedJson);
 }
 
+function parseProviderName(value: string): ProviderName {
+	const name = PROVIDER_NAMES.find((candidate) => candidate === value.toLowerCase());
+	if (!name) {
+		throw new StickrError(
+			`Unknown provider "${value}". Supported providers: ${PROVIDER_NAMES.join(', ')}.`,
+		);
+	}
+	return name;
+}
+
 export async function runGenerate(options: {
 	spec?: string;
 	provider?: ImageProvider;
+	providerName?: string;
 }): Promise<StickerRecord> {
+	const config = loadConfig();
 	const spec = await readSpecInput(options.spec);
-	const provider = options.provider ?? (await defaultProvider());
+	const provider =
+		options.provider ??
+		(await createProvider(parseProviderName(options.providerName ?? config.provider)));
 
 	let original: Buffer | null = null;
 	let usedPrompt = '';
 	let lastError = '';
 	for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-		const prompt = attempt === 1 ? buildPrompt(spec) : buildRetryPrompt(spec);
+		const prompt =
+			attempt === 1
+				? buildPrompt(spec, provider.background)
+				: buildRetryPrompt(spec, provider.background);
 		let image: Buffer;
 		try {
 			image = await provider.generate(prompt);
@@ -108,6 +126,7 @@ export async function runGenerate(options: {
 export async function generateAndReport(options: {
 	spec?: string;
 	provider?: ImageProvider;
+	providerName?: string;
 	json?: boolean;
 	autoCopy?: boolean;
 }): Promise<StickerRecord> {

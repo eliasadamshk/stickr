@@ -1,14 +1,17 @@
-import { ensureConfig, stickrHome } from '../config.js';
-import { readStoredKey } from '../credentials.js';
+import { ensureConfig, loadConfig, saveConfig, stickrHome } from '../config.js';
+import { KEY_ENV_VARS, readStoredKey } from '../credentials.js';
 import { StickrError } from '../errors.js';
 import { type AgentIntegration, allIntegrations } from '../integrations/agents.js';
 import { promptForApiKey } from '../prompt-key.js';
+import { PROVIDER_NAMES, type ProviderName } from '../provider/index.js';
 import { selfTestImagePipeline } from '../selftest.js';
 
 export interface SetupOptions {
 	skip?: string[];
 	force?: string[];
 	dryRun?: boolean;
+	/** Image provider to save as the default. */
+	provider?: string;
 }
 
 const CHECK = '✓';
@@ -29,7 +32,21 @@ function validateAgentNames(names: string[] | undefined, option: string): void {
 	}
 }
 
+function parseChoice<T extends string>(value: string, allowed: readonly T[], option: string): T {
+	const match = allowed.find((candidate) => candidate === value.toLowerCase());
+	if (!match) {
+		throw new StickrError(
+			`Unknown value "${value}" for ${option}. Use one of: ${allowed.join(', ')}.`,
+		);
+	}
+	return match;
+}
+
 export async function runSetup(options: SetupOptions = {}): Promise<void> {
+	const provider =
+		options.provider === undefined
+			? undefined
+			: parseChoice(options.provider, PROVIDER_NAMES, '--provider');
 	validateAgentNames(options.skip, '--skip');
 	validateAgentNames(options.force, '--force');
 	const conflict = options.skip?.find((name) => hasFlag(name, options.force));
@@ -43,6 +60,12 @@ export async function runSetup(options: SetupOptions = {}): Promise<void> {
 	} else {
 		ensureConfig();
 		console.log(`${CHECK} Local storage at ${stickrHome()}`);
+	}
+	const config = loadConfig();
+	const activeProvider: ProviderName = provider ?? config.provider;
+	if (provider) {
+		if (!options.dryRun) saveConfig({ ...config, provider: activeProvider });
+		console.log(`${CHECK} Image provider: ${activeProvider}`);
 	}
 
 	const readyIntegrations: AgentIntegration[] = [];
@@ -83,7 +106,7 @@ export async function runSetup(options: SetupOptions = {}): Promise<void> {
 		);
 	}
 
-	await ensureApiKeyStep(options);
+	await ensureApiKeyStep(options, activeProvider);
 
 	if (options.dryRun) {
 		console.log(`${SKIP} Self-test skipped (dry run)`);
@@ -116,30 +139,33 @@ export async function runSetup(options: SetupOptions = {}): Promise<void> {
  * Non-interactive runs only
  * print instructions — setup never fails over a missing key.
  */
-async function ensureApiKeyStep(options: SetupOptions): Promise<void> {
-	const env = process.env.OPENAI_API_KEY?.trim();
+async function ensureApiKeyStep(options: SetupOptions, provider: ProviderName): Promise<void> {
+	const envVar = KEY_ENV_VARS[provider];
+	const label = provider === 'gemini' ? 'Gemini' : 'OpenAI';
+	const env = process.env[envVar]?.trim();
 	if (env) {
-		console.log(`${CHECK} OPENAI_API_KEY found in environment`);
+		console.log(`${CHECK} ${envVar} found in environment`);
 		return;
 	}
 
 	if (!options.dryRun) {
-		const stored = await readStoredKey();
+		const stored = await readStoredKey(undefined, provider);
 		if (stored) {
-			console.log(`${CHECK} OpenAI API key found (${stored.source})`);
+			console.log(`${CHECK} ${label} API key found (${stored.source})`);
 			return;
 		}
 	}
 
 	if (options.dryRun) {
-		console.log(`${SKIP} No OpenAI API key configured yet`);
+		console.log(`${SKIP} No ${label} API key configured yet`);
 		return;
 	}
 
-	const savedTo = await promptForApiKey();
+	const savedTo = await promptForApiKey(provider);
 	if (!savedTo) {
+		const setupCommand = provider === 'gemini' ? 'stickr setup --provider gemini' : 'stickr setup';
 		console.log(
-			`${SKIP} No API key stored.\n   Fix (any one of):\n     stickr setup            (paste your key when asked)\n     export OPENAI_API_KEY="sk-..."   (add to your shell profile)\n   Current resolution order: env → ${storeHint()}`,
+			`${SKIP} No API key stored.\n   Fix (any one of):\n     ${setupCommand}   (paste your key when asked)\n     export ${envVar}="..."   (add to your shell profile)\n   Current resolution order: env → ${storeHint()}`,
 		);
 	}
 }

@@ -42,7 +42,7 @@ describe('platform keystores (faked runners)', () => {
 		expect(saveCall?.cmd).toBe('security');
 		expect(saveCall?.args).toContain('-U'); // idempotent overwrite
 		expect(saveCall?.args).not.toContain('sk-new-1234567890abcd');
-		expect(saveCall?.input).toBe('sk-new-1234567890abcd\n');
+		expect(saveCall?.input).toBe('sk-new-1234567890abcd\nsk-new-1234567890abcd\n');
 
 		const stored = await readStoredKey(runner);
 		expect(stored?.key).toBe('sk-from-keychain-1234567890');

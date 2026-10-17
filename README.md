@@ -39,7 +39,7 @@ pnpm link --global
 stickr setup
 ```
 
-Setup looks for Codex and Claude Code and installs Stickr for each one it finds. Codex uses `~/.agents/skills/stickr`; Claude Code uses `~/.claude/skills/stickr`. Setup also creates `~/.stickr/`, tests image processing, and checks your OpenAI API key.
+Setup looks for Codex and Claude Code and installs Stickr for each one it finds. Codex uses `~/.agents/skills/stickr`; Claude Code uses `~/.claude/skills/stickr`. Setup also creates `~/.stickr/`, tests image processing, and checks the API key for your image provider (OpenAI by default).
 
 - If `OPENAI_API_KEY` is set, setup confirms it.
 - Otherwise, setup can save the key in the operating system's credential store:
@@ -60,6 +60,22 @@ export OPENAI_API_KEY="sk-..."   # add to ~/.zshrc to make it permanent
 
 You can run `stickr setup` more than once.
 
+### Use Google Nano Banana instead of OpenAI
+
+Stickr can generate with Google's `gemini-nano-banana-2.1` model instead of OpenAI:
+
+```bash
+stickr setup --provider gemini
+```
+
+This saves `"provider": "gemini"` in `~/.stickr/config.json` and asks for a Gemini API key, stored the same way as the OpenAI key. You can set `GEMINI_API_KEY` instead. To switch for one sticker only, pass `--provider gemini` (or `openai`) to `stickr generate`.
+
+1. Create a key at [Google AI Studio](https://aistudio.google.com/apikey).
+2. Add billing. The model has no free tier, and new AI Studio accounts use prepaid credits: buy at least $5 on the AI Studio Billing page. When credits run out, requests fail with "prepayment credits are depleted".
+3. Run `stickr setup --provider gemini` and paste the key.
+
+Gemini returns only JPEG images, so Stickr asks the model for a flat magenta background and removes it to make the sticker transparent. One 1K image costs about $0.034.
+
 ## Use
 
 Open Codex or Claude Code, do some normal coding work, then invoke Stickr:
@@ -67,7 +83,7 @@ Open Codex or Claude Code, do some normal coding work, then invoke Stickr:
 - Claude Code: `/stickr`
 - Codex: `$stickr`, or select Stickr from `/skills`
 
-Your agent picks a moment from the conversation, such as a refactor that finally passed, a 1,200-line cleanup, or a bug it introduced and fixed. It turns that moment into a die-cut sticker concept and sends the visual description to OpenAI's `gpt-image-2.5-flare` model. Stickr checks the returned image for transparency, normalizes it, and copies it to your clipboard. You do not have to describe the sticker yourself.
+Your agent picks a moment from the conversation, such as a refactor that finally passed, a 1,200-line cleanup, or a bug it introduced and fixed. It turns that moment into a die-cut sticker concept and sends the visual description to the image model: OpenAI's `gpt-image-2.5-flare` by default, or Google's `gemini-nano-banana-2.1`. Stickr checks the returned image for transparency, normalizes it, and copies it to your clipboard. You do not have to describe the sticker yourself.
 
 ## What you get
 
@@ -96,7 +112,9 @@ stickr --help           # usage summary; --version prints the version
 Flags:
 
 - `setup --skip "<Name>"` / `--force "<Name>"`: skip a detected agent or install for one that was not detected. Use a comma-separated value for multiple agents. `--dry-run` shows what would happen without writing.
+- `setup --provider <openai|gemini>`: save the default image provider.
 - `generate --json`: print the full sticker record as JSON instead of the human-readable summary.
+- `generate --provider <openai|gemini>`: use a different image provider for this sticker.
 - `inspect --verbose` (or `STICKR_DEBUG=1`): also print the full image prompt.
 
 Agents use `generate` under the hood with a compact JSON StickerSpec:
@@ -116,24 +134,27 @@ Agents use `generate` under the hood with a compact JSON StickerSpec:
 
 ## Privacy
 
-Stickr sends only the invented visual description to OpenAI. It does not send source code, diffs, environment variables, terminal history, credentials, or arbitrary command output. The Stickr instructions tell the agent to summarize the session before generating the image.
+Stickr sends only the invented visual description to the image provider (OpenAI or Google). It does not send source code, diffs, environment variables, terminal history, credentials, or arbitrary command output. The Stickr instructions tell the agent to summarize the session before generating the image.
 
 ## Configuration
 
-`~/.stickr/config.json` has one setting:
+`~/.stickr/config.json`:
 
 ```json
 {
-  "autoCopy": true
+  "autoCopy": true,
+  "provider": "openai"
 }
 ```
 
-Set `"autoCopy": false` if clipboard copying is unreliable in your environment.
+- `autoCopy`: set to `false` if clipboard copying is unreliable in your environment.
+- `provider`: `openai` (default) or `gemini`.
 
 Environment variables:
 
 - `STICKR_HOME`: store config and stickers somewhere other than `~/.stickr`.
 - `STICKR_DEBUG=1`: print error causes and stack traces.
+- `OPENAI_API_KEY` / `GEMINI_API_KEY`: API keys; these take priority over stored keys.
 
 ## Development
 
@@ -152,5 +173,6 @@ The first release needs a granular npm publish token stored in the `NPM_TOKEN` G
 
 - Linux needs `libsecret-tools` to save the API key in Secret Service. For example, run `sudo apt install libsecret-tools`. You can use `OPENAI_API_KEY` instead.
 - macOS copies images through NSPasteboard. Linux tries `wl-copy` (Wayland sessions only) and then `xclip`. On other platforms, Stickr prints the file path so you can copy the image manually.
+- Gemini generation requires prepaid Google AI Studio credits; Google adds an invisible SynthID watermark to every image.
 - Image generation requires an OpenAI API key with access to `gpt-image-2.5-flare`; [OpenAI may require API Organization Verification](https://developers.openai.com/api/docs/guides/image-generation) for GPT Image models.
 - If transparency validation fails, Stickr retries once with stronger instructions. It does not keep regenerating images.

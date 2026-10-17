@@ -1,6 +1,12 @@
 import type { StickerSpec } from './spec.js';
 
 /**
+ * How the model should handle the background: native alpha, or a flat key
+ * color that Stickr removes afterwards (for models without alpha output).
+ */
+export type BackgroundMode = 'transparent' | 'chroma-key';
+
+/**
  * Prompt version — bump when house-style instructions change so metadata
  * can record which prompt produced a given sticker.
  */
@@ -23,6 +29,14 @@ const TRANSPARENCY_RULES = [
 	'Do not add a watermark, signature, or frame.',
 ].join('\n');
 
+const CHROMA_KEY_RULES = [
+	'Place the sticker on a perfectly flat, solid pure magenta (#FF00FF) background that fills the whole frame.',
+	'No gradients, shadows, texture, or vignette in the background.',
+	'Never use magenta or hot pink inside the sticker.',
+	'Do not create an environmental scene, ground plane, sky, or backdrop.',
+	'Do not add a watermark, signature, or frame.',
+].join('\n');
+
 function captionBlock(caption: string | undefined): string {
 	if (!caption) {
 		return 'Caption: none. Do not render any text.';
@@ -38,7 +52,7 @@ function captionBlock(caption: string | undefined): string {
  * Build the image-model prompt from stable house style + StickerSpec.
  * Only StickerSpec content is used — never raw session material.
  */
-export function buildPrompt(spec: StickerSpec): string {
+export function buildPrompt(spec: StickerSpec, background: BackgroundMode = 'transparent'): string {
 	return [
 		HOUSE_STYLE,
 		'',
@@ -48,7 +62,7 @@ export function buildPrompt(spec: StickerSpec): string {
 		`Mood: ${spec.mood}`,
 		captionBlock(spec.caption),
 		'',
-		TRANSPARENCY_RULES,
+		background === 'chroma-key' ? CHROMA_KEY_RULES : TRANSPARENCY_RULES,
 	].join('\n');
 }
 
@@ -56,7 +70,18 @@ export function buildPrompt(spec: StickerSpec): string {
  * Stronger transparency instructions used for the single retry when the
  * first attempt fails validation.
  */
-export function buildRetryPrompt(spec: StickerSpec): string {
+export function buildRetryPrompt(
+	spec: StickerSpec,
+	background: BackgroundMode = 'transparent',
+): string {
+	if (background === 'chroma-key') {
+		return [
+			buildPrompt(spec, background),
+			'',
+			'CRITICAL: Every pixel outside the die-cut border must be the exact same flat magenta (#FF00FF).',
+			'The die-cut border must fully enclose the subject with no gaps.',
+		].join('\n');
+	}
 	return [
 		buildPrompt(spec),
 		'',
