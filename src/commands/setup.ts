@@ -1,3 +1,4 @@
+import { CHARACTER_NAMES, type CharacterName } from '../characters.js';
 import { ensureConfig, loadConfig, saveConfig, stickrHome } from '../config.js';
 import { KEY_ENV_VARS, readStoredKey } from '../credentials.js';
 import { StickrError } from '../errors.js';
@@ -12,6 +13,8 @@ export interface SetupOptions {
 	dryRun?: boolean;
 	/** Image provider to save as the default. */
 	provider?: string;
+	/** Default mascot to save; "none" clears it. */
+	character?: string;
 }
 
 const CHECK = '✓';
@@ -47,6 +50,10 @@ export async function runSetup(options: SetupOptions = {}): Promise<void> {
 		options.provider === undefined
 			? undefined
 			: parseChoice(options.provider, PROVIDER_NAMES, '--provider');
+	const character =
+		options.character === undefined
+			? undefined
+			: parseChoice(options.character, [...CHARACTER_NAMES, 'none'], '--character');
 	validateAgentNames(options.skip, '--skip');
 	validateAgentNames(options.force, '--force');
 	const conflict = options.skip?.find((name) => hasFlag(name, options.force));
@@ -63,9 +70,14 @@ export async function runSetup(options: SetupOptions = {}): Promise<void> {
 	}
 	const config = loadConfig();
 	const activeProvider: ProviderName = provider ?? config.provider;
-	if (provider) {
-		if (!options.dryRun) saveConfig({ ...config, provider: activeProvider });
-		console.log(`${CHECK} Image provider: ${activeProvider}`);
+	if (provider || character) {
+		const next = { ...config, provider: activeProvider };
+		if (character === 'none') delete next.character;
+		else if (character) next.character = character as CharacterName;
+		if (!options.dryRun) saveConfig(next);
+		console.log(
+			`${CHECK} Image provider: ${activeProvider}; character: ${next.character ?? 'chosen per sticker'}`,
+		);
 	}
 
 	const readyIntegrations: AgentIntegration[] = [];

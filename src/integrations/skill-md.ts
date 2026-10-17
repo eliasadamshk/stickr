@@ -44,7 +44,12 @@ stickr generate --spec '{"concept":"capybara sweeping old code into a bin","subj
 \`\`\`
 
 Fields: \`concept\`, \`subject\`, \`action\`, \`mood\` (required);
-\`caption\`, \`contextSummary\` (optional). Keep every field short.
+\`caption\`, \`contextSummary\`, \`character\` (optional). Keep every field short.
+
+\`character\` picks a recurring Stickr mascot: \`otter\`, \`raccoon\`, \`cat\`,
+\`flamingo\`, or \`spider\`. Set it only when the user asks for one of them
+(for example, "/stickr with the otter"). Otherwise leave it out: Stickr applies
+the user's default mascot if they configured one.
 If \`stickr\` is not on PATH, ask the user to run \`stickr setup\`.
 
 ## 4. Report

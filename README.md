@@ -76,6 +76,19 @@ This saves `"provider": "gemini"` in `~/.stickr/config.json` and asks for a Gemi
 
 Gemini returns only JPEG images, so Stickr asks the model for a flat magenta background and removes it to make the sticker transparent. One 1K image costs about $0.034.
 
+## Characters
+
+Stickr has a cast of recurring mascots drawn in one shared style: `otter`, `raccoon`, `cat`, `flamingo`, and `spider`.
+
+- Ask for one when you invoke Stickr, for example `/stickr with the otter`.
+- Or make one the default for every sticker:
+
+  ```bash
+  stickr setup --character otter    # use --character none to go back to a new subject each time
+  ```
+
+Without a character, your agent invents a fitting subject for each sticker.
+
 ## Use
 
 Open Codex or Claude Code, do some normal coding work, then invoke Stickr:
@@ -112,7 +125,7 @@ stickr --help           # usage summary; --version prints the version
 Flags:
 
 - `setup --skip "<Name>"` / `--force "<Name>"`: skip a detected agent or install for one that was not detected. Use a comma-separated value for multiple agents. `--dry-run` shows what would happen without writing.
-- `setup --provider <openai|gemini>`: save the default image provider.
+- `setup --provider <openai|gemini>` / `--character <name|none>`: save the default image provider or mascot.
 - `generate --json`: print the full sticker record as JSON instead of the human-readable summary.
 - `generate --provider <openai|gemini>`: use a different image provider for this sticker.
 - `inspect --verbose` (or `STICKR_DEBUG=1`): also print the full image prompt.
@@ -130,7 +143,7 @@ Agents use `generate` under the hood with a compact JSON StickerSpec:
 }
 ```
 
-`caption` and `contextSummary` are optional. `contextSummary` is stored in metadata only and never sent to the image model.
+`caption`, `contextSummary`, and `character` are optional. `contextSummary` is stored in metadata only and never sent to the image model. `character` is one of the mascots listed under [Characters](#characters).
 
 ## Privacy
 
@@ -143,12 +156,14 @@ Stickr sends only the invented visual description to the image provider (OpenAI 
 ```json
 {
   "autoCopy": true,
-  "provider": "openai"
+  "provider": "openai",
+  "character": "otter"
 }
 ```
 
 - `autoCopy`: set to `false` if clipboard copying is unreliable in your environment.
 - `provider`: `openai` (default) or `gemini`.
+- `character`: optional default mascot; leave it out to get a new subject each time.
 
 Environment variables:
 

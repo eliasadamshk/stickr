@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CHARACTER_NAMES } from './characters.js';
 import { StickrError } from './errors.js';
 
 const singleLine = (max: number) =>
@@ -29,6 +30,8 @@ export const stickerSpecSchema = z
 			.optional(),
 		/** Short semantic summary of the session context (for metadata only; never sent to the image model). */
 		contextSummary: singleLine(500).optional(),
+		/** Optional recurring mascot; replaces the free-form subject in the image prompt. */
+		character: z.enum(CHARACTER_NAMES).optional(),
 	})
 	.strict();
 

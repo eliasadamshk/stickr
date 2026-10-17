@@ -25,6 +25,8 @@ Setup options:
   --force "<Name>"          Install even if not detected
   --dry-run                 Show what would happen without writing
   --provider <name>         Save the image provider: openai or gemini
+  --character <name>        Save a default mascot: otter, raccoon, cat,
+                            flamingo, spider, or none
 
 Generate options:
   --json                    Print the complete sticker record as JSON
@@ -59,7 +61,13 @@ async function main(): Promise<number> {
 
 	switch (command) {
 		case 'setup': {
-			validateArgs(command, positional, flags, ['skip', 'force', 'dry-run', 'provider'], 0);
+			validateArgs(
+				command,
+				positional,
+				flags,
+				['skip', 'force', 'dry-run', 'provider', 'character'],
+				0,
+			);
 			const skip = flagValue(flags, 'skip');
 			const force = flagValue(flags, 'force');
 			await runSetup({
@@ -67,6 +75,7 @@ async function main(): Promise<number> {
 				force: force ? splitList(force) : undefined,
 				dryRun: flags.has('dry-run'),
 				provider: flagValue(flags, 'provider'),
+				character: flagValue(flags, 'character'),
 			});
 			return 0;
 		}

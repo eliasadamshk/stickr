@@ -61,7 +61,10 @@ export async function runGenerate(options: {
 	providerName?: string;
 }): Promise<StickerRecord> {
 	const config = loadConfig();
-	const spec = await readSpecInput(options.spec);
+	const input = await readSpecInput(options.spec);
+	// The configured default mascot applies unless the spec names its own.
+	const spec: StickerSpec =
+		input.character || !config.character ? input : { ...input, character: config.character };
 	const provider =
 		options.provider ??
 		(await createProvider(parseProviderName(options.providerName ?? config.provider)));

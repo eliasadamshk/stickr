@@ -1,3 +1,4 @@
+import { CHARACTER_STYLE, CHARACTERS } from './characters.js';
 import type { StickerSpec } from './spec.js';
 
 /**
@@ -10,7 +11,7 @@ export type BackgroundMode = 'transparent' | 'chroma-key';
  * Prompt version — bump when house-style instructions change so metadata
  * can record which prompt produced a given sticker.
  */
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 
 const HOUSE_STYLE = [
 	'Create a premium die-cut messaging sticker.',
@@ -19,7 +20,7 @@ const HOUSE_STYLE = [
 	'Simple expressive composition with a bold silhouette.',
 	'Minimal visual clutter, minimal interior detail.',
 	'Must remain clearly readable at small sizes.',
-	'Thin white or cream die-cut border following the outline of the subject.',
+	'Thin die-cut border following the outline of the subject, always the same warm cream color (#F3EAD6), never pure white.',
 ].join('\n');
 
 const TRANSPARENCY_RULES = [
@@ -43,9 +44,19 @@ function captionBlock(caption: string | undefined): string {
 	}
 	return [
 		`Caption: "${caption}"`,
-		'Render the caption as short bold rounded lettering inside the sticker shape.',
+		'Caption lettering must use the same style on every sticker: chunky rounded sans-serif capitals with a solid dark navy fill, even letter widths, no outline, no shadow, no 3D effect, and no other colors.',
+		'Set the caption on one straight horizontal line (two centered lines only if it does not fit), centered below the subject, inside the sticker shape.',
 		'Keep the caption under a quarter of the image area.',
 	].join('\n');
+}
+
+function subjectBlock(spec: StickerSpec): string[] {
+	if (!spec.character) return [`Subject: ${spec.subject}`];
+	return [
+		`Subject: ${CHARACTERS[spec.character]}`,
+		CHARACTER_STYLE,
+		'If the concept mentions a different animal or character, draw this character instead.',
+	];
 }
 
 /**
@@ -57,7 +68,7 @@ export function buildPrompt(spec: StickerSpec, background: BackgroundMode = 'tra
 		HOUSE_STYLE,
 		'',
 		`Concept: ${spec.concept}`,
-		`Subject: ${spec.subject}`,
+		...subjectBlock(spec),
 		`Action: ${spec.action}`,
 		`Mood: ${spec.mood}`,
 		captionBlock(spec.caption),
@@ -79,7 +90,7 @@ export function buildRetryPrompt(
 			buildPrompt(spec, background),
 			'',
 			'CRITICAL: Every pixel outside the die-cut border must be the exact same flat magenta (#FF00FF).',
-			'The die-cut border must fully enclose the subject with no gaps.',
+			'The cream (#F3EAD6) border must fully enclose the subject with no gaps.',
 		].join('\n');
 	}
 	return [

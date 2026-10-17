@@ -86,3 +86,16 @@ describe('prompt generation', () => {
 		expect(prompt).not.toContain('Large legacy cleanup');
 	});
 });
+
+describe('characters', () => {
+	it('draws the named mascot instead of the free-form subject', () => {
+		const prompt = buildPrompt(parseStickerSpec({ ...validSpec, character: 'otter' }));
+		expect(prompt).toContain('Subject: a chubby brown sea otter');
+		expect(prompt).toContain('Stickr mascot style');
+		expect(prompt).not.toContain('cute capybara');
+	});
+
+	it('rejects characters outside the cast', () => {
+		expect(() => parseStickerSpec({ ...validSpec, character: 'dragon' })).toThrow(/character/);
+	});
+});

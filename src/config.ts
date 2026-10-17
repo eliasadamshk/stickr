@@ -2,12 +2,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { CHARACTER_NAMES } from './characters.js';
 import { StickrError } from './errors.js';
 
 export const configSchema = z
 	.object({
 		autoCopy: z.boolean().default(true),
 		provider: z.enum(['openai', 'gemini']).default('openai'),
+		/** Default mascot for stickers whose spec does not name one. */
+		character: z.enum(CHARACTER_NAMES).optional(),
 	})
 	.strict();
 
@@ -55,7 +58,7 @@ export function loadConfig(): StickrConfig {
 	const parsed = configSchema.safeParse(raw);
 	if (!parsed.success) {
 		throw new StickrError(
-			`Config file has invalid values: ${path}\nAllowed keys: autoCopy (boolean), provider ("openai" or "gemini").\nFix or delete the file, then run "stickr setup" again.`,
+			`Config file has invalid values: ${path}\nAllowed keys: autoCopy (boolean), provider ("openai" or "gemini"), character (${CHARACTER_NAMES.join(', ')}).\nFix or delete the file, then run "stickr setup" again.`,
 		);
 	}
 	return parsed.data;

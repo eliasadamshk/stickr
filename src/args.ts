@@ -71,7 +71,7 @@ export function validateArgs(
 		if (!allowedFlags.includes(name)) {
 			throw new StickrError(`Unknown option "--${name}" for "stickr ${command}".`);
 		}
-		const expectsValue = ['spec', 'skip', 'force', 'provider'].includes(name);
+		const expectsValue = ['spec', 'skip', 'force', 'provider', 'character'].includes(name);
 		if (expectsValue && (typeof value !== 'string' || value.length === 0)) {
 			throw new StickrError(`Option "--${name}" requires a value.`);
 		}
