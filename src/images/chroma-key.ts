@@ -9,8 +9,21 @@ const BACKGROUND_TOLERANCE = 110;
  * The prompt forbids magenta inside the sticker, so near-exact key pixels are background.
  */
 const POCKET_SEED_TOLERANCE = 40;
-/** Distance from the key to a white border; used to estimate fringe alpha. */
-const BORDER_DISTANCE = 255;
+
+/**
+ * Models often paint a dusty magenta instead of the exact key, so key on the
+ * median edge colour while it is still clearly magenta; otherwise use the exact key.
+ */
+function sampleKey(data: Buffer, width: number, height: number): readonly [number, number, number] {
+	const edge: number[] = [];
+	for (let x = 0; x < width; x++) edge.push(x, (height - 1) * width + x);
+	for (let y = 0; y < height; y++) edge.push(y * width, y * width + width - 1);
+	const median = (c: number) =>
+		edge.map((i) => data[i * 3 + c]).sort((p, q) => p - q)[edge.length >> 1];
+	const [r, g, b] = [median(0), median(1), median(2)];
+	if (Math.hypot(r - KEY[0], g - KEY[1], b - KEY[2]) <= POCKET_SEED_TOLERANCE) return KEY;
+	return r - g > 60 && b - g > 30 ? [r, g, b] : KEY;
+}
 
 /**
  * Remove a flat magenta background from an opaque image and return a PNG with
@@ -25,14 +38,19 @@ export async function removeChromaKey(input: Buffer): Promise<Buffer> {
 		.toBuffer({ resolveWithObject: true });
 	const { width, height } = info;
 	const pixels = width * height;
+	const key = sampleKey(data, width, height);
 	const distance = (i: number) =>
-		Math.hypot(data[i * 3] - KEY[0], data[i * 3 + 1] - KEY[1], data[i * 3 + 2] - KEY[2]);
+		Math.hypot(data[i * 3] - key[0], data[i * 3 + 1] - key[1], data[i * 3 + 2] - key[2]);
+	/** Distance from the key to a white border; used to estimate fringe alpha. */
+	const borderDistance = Math.hypot(255 - key[0], 255 - key[1], 255 - key[2]);
 
 	const background = new Uint8Array(pixels);
 	const stack: number[] = [];
 	for (let x = 0; x < width; x++) stack.push(x, (height - 1) * width + x);
 	for (let y = 0; y < height; y++) stack.push(y * width, y * width + width - 1);
-	for (let i = 0; i < pixels; i++) if (distance(i) <= POCKET_SEED_TOLERANCE) stack.push(i);
+	// A drifted key sits close to blush and mouth pinks, so only the exact key seeds pockets.
+	if (key === KEY)
+		for (let i = 0; i < pixels; i++) if (distance(i) <= POCKET_SEED_TOLERANCE) stack.push(i);
 	while (stack.length > 0) {
 		const i = stack.pop() as number;
 		if (background[i] || distance(i) > BACKGROUND_TOLERANCE) continue;
@@ -54,14 +72,14 @@ export async function removeChromaKey(input: Buffer): Promise<Buffer> {
 			(i < pixels - width && background[i + width] === 1);
 		let alpha = 1;
 		if (background[i]) alpha = 0;
-		else if (touchesBackground) alpha = Math.min(1, distance(i) / BORDER_DISTANCE);
+		else if (touchesBackground) alpha = Math.min(1, distance(i) / borderDistance);
 
 		for (let c = 0; c < 3; c++) {
 			const value = data[i * 3 + c];
 			// observed = alpha * foreground + (1 - alpha) * key  →  solve for foreground.
 			rgba[i * 4 + c] =
 				alpha > 0 && alpha < 1
-					? Math.max(0, Math.min(255, Math.round((value - (1 - alpha) * KEY[c]) / alpha)))
+					? Math.max(0, Math.min(255, Math.round((value - (1 - alpha) * key[c]) / alpha)))
 					: value;
 		}
 		rgba[i * 4 + 3] = Math.round(alpha * 255);
