@@ -4,14 +4,14 @@ import { removeChromaKey } from '../src/images/chroma-key.js';
 import { GEMINI_IMAGE_MODEL, GeminiImageProvider } from '../src/provider/gemini.js';
 
 /** 64x64 magenta JPEG with a white-bordered square whose center is also magenta. */
-async function keyedJpeg(): Promise<Buffer> {
+async function keyedJpeg(key = '#ff00ff'): Promise<Buffer> {
 	const square = await sharp({
 		create: { width: 32, height: 32, channels: 3, background: '#ffffff' },
 	})
 		.composite([
 			{
 				input: await sharp({
-					create: { width: 16, height: 16, channels: 3, background: '#ff00ff' },
+					create: { width: 16, height: 16, channels: 3, background: key },
 				})
 					.png()
 					.toBuffer(),
@@ -21,7 +21,7 @@ async function keyedJpeg(): Promise<Buffer> {
 		])
 		.png()
 		.toBuffer();
-	return sharp({ create: { width: 64, height: 64, channels: 3, background: '#ff00ff' } })
+	return sharp({ create: { width: 64, height: 64, channels: 3, background: key } })
 		.composite([{ input: square, top: 16, left: 16 }])
 		.jpeg({ quality: 90 })
 		.toBuffer();
@@ -39,6 +39,26 @@ describe('chroma key removal', () => {
 		expect(await alphaAt(png, 20, 20)).toBe(255);
 		// A flat magenta pocket enclosed by the border is background too.
 		expect(await alphaAt(png, 32, 32)).toBe(0);
+	});
+
+	it('keys out a flat background that drifted from pure magenta', async () => {
+		// Some image models paint a dusty magenta instead of #FF00FF.
+		const png = await removeChromaKey(await keyedJpeg('#c35082'));
+		expect(await alphaAt(png, 2, 2)).toBe(0);
+		expect(await alphaAt(png, 20, 20)).toBe(255);
+		// Too close to blush and mouth pinks to treat an enclosed patch as background.
+		expect(await alphaAt(png, 32, 32)).toBe(255);
+	});
+
+	it('still clears an enclosed pocket when the background is near pure magenta', async () => {
+		const png = await removeChromaKey(await keyedJpeg('#e61ee6'));
+		expect(await alphaAt(png, 2, 2)).toBe(0);
+		expect(await alphaAt(png, 32, 32)).toBe(0);
+	});
+
+	it('leaves an image without a magenta background opaque', async () => {
+		const png = await removeChromaKey(await keyedJpeg('#ffffff'));
+		expect(await alphaAt(png, 2, 2)).toBe(255);
 	});
 });
 
