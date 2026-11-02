@@ -42,12 +42,18 @@ describe('chroma key removal', () => {
 	});
 
 	it('keys out a flat background that drifted from pure magenta', async () => {
-		// Image models often paint a dusty magenta instead of #FF00FF.
+		// Some image models paint a dusty magenta instead of #FF00FF.
 		const png = await removeChromaKey(await keyedJpeg('#c35082'));
 		expect(await alphaAt(png, 2, 2)).toBe(0);
 		expect(await alphaAt(png, 20, 20)).toBe(255);
 		// Too close to blush and mouth pinks to treat an enclosed patch as background.
 		expect(await alphaAt(png, 32, 32)).toBe(255);
+	});
+
+	it('still clears an enclosed pocket when the background is near pure magenta', async () => {
+		const png = await removeChromaKey(await keyedJpeg('#e61ee6'));
+		expect(await alphaAt(png, 2, 2)).toBe(0);
+		expect(await alphaAt(png, 32, 32)).toBe(0);
 	});
 
 	it('leaves an image without a magenta background opaque', async () => {

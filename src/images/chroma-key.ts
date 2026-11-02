@@ -11,8 +11,7 @@ const BACKGROUND_TOLERANCE = 110;
 const POCKET_SEED_TOLERANCE = 40;
 
 /**
- * Models often paint a dusty magenta instead of the exact key, so key on the
- * median edge colour while it is still clearly magenta; otherwise use the exact key.
+ * Some models paint a dusty magenta far from the exact key; key on the median edge colour then.
  */
 function sampleKey(data: Buffer, width: number, height: number): readonly [number, number, number] {
 	const edge: number[] = [];
@@ -21,7 +20,7 @@ function sampleKey(data: Buffer, width: number, height: number): readonly [numbe
 	const median = (c: number) =>
 		edge.map((i) => data[i * 3 + c]).sort((p, q) => p - q)[edge.length >> 1];
 	const [r, g, b] = [median(0), median(1), median(2)];
-	if (Math.hypot(r - KEY[0], g - KEY[1], b - KEY[2]) <= POCKET_SEED_TOLERANCE) return KEY;
+	if (Math.hypot(r - KEY[0], g - KEY[1], b - KEY[2]) <= BACKGROUND_TOLERANCE) return KEY;
 	return r - g > 60 && b - g > 30 ? [r, g, b] : KEY;
 }
 
