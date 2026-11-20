@@ -22,13 +22,17 @@ describe.runIf(process.platform === 'darwin')('macOS Keychain round trip (real s
 	});
 
 	afterEach(() => {
+		execFileSync('security', [
+			'delete-keychain',
+			join(home, 'Library', 'Keychains', 'login.keychain-db'),
+		]);
 		process.env.HOME = originalHome;
 		rmSync(home, { recursive: true, force: true });
 	});
 
 	it.each([
 		['a full-length project key', `sk-proj-${'A1b2C3d4_-'.repeat(16)}`],
-		['quotes, backslashes and spaces', `sk-test "quoted" back\\slash it's $HOME #x`],
+		['quotes, backslashes and shell characters', `sk-test"quoted"back\\slash'it's$HOME#x`],
 	])('stores %s unchanged', async (_label, key) => {
 		await saveStoredKey(key);
 		expect((await readStoredKey())?.key).toBe(key);

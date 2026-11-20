@@ -50,6 +50,24 @@ describe('platform keystores (faked runners)', () => {
 		expect(stored?.source).toBe('macOS Keychain');
 	});
 
+	it('refuses macOS keys that would not survive one security -i line', async () => {
+		Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+		let calls = 0;
+		const runner: Runner = async () => {
+			calls++;
+			return { stdout: '' };
+		};
+		for (const key of [
+			`sk-${'A'.repeat(5000)}`,
+			'sk-AAAAAAAAAAAAAAAAAAAA\nhelp',
+			'sk-AAAA\0TAIL',
+			'sk-ключ-AAAAAAAAAAAA',
+		]) {
+			await expect(saveStoredKey(key, runner)).rejects.toThrow(/printable ASCII/);
+		}
+		expect(calls).toBe(0);
+	});
+
 	it('Linux secret-tool is used when available and skipped when not', async () => {
 		Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
 		const withTool: Runner = async () => ({ stdout: 'stored-key-1234567890' });
