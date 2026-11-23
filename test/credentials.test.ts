@@ -38,15 +38,34 @@ describe('platform keystores (faked runners)', () => {
 		};
 
 		await saveStoredKey('sk-new-1234567890abcd', runner);
-		const saveCall = calls.find((c) => c.args[0] === 'add-generic-password');
+		const saveCall = calls.find((c) => c.args[0] === '-i');
 		expect(saveCall?.cmd).toBe('security');
-		expect(saveCall?.args).toContain('-U'); // idempotent overwrite
-		expect(saveCall?.args).not.toContain('sk-new-1234567890abcd');
-		expect(saveCall?.input).toBe('sk-new-1234567890abcd\nsk-new-1234567890abcd\n');
+		expect(saveCall?.args).toEqual(['-i']); // the key travels on stdin, never in argv
+		expect(saveCall?.input).toBe(
+			'add-generic-password -s stickr -a openai-api-key -U -w "sk-new-1234567890abcd"\n',
+		);
 
 		const stored = await readStoredKey(runner);
 		expect(stored?.key).toBe('sk-from-keychain-1234567890');
 		expect(stored?.source).toBe('macOS Keychain');
+	});
+
+	it('refuses macOS keys that would not survive one security -i line', async () => {
+		Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+		let calls = 0;
+		const runner: Runner = async () => {
+			calls++;
+			return { stdout: '' };
+		};
+		for (const key of [
+			`sk-${'A'.repeat(5000)}`,
+			'sk-AAAAAAAAAAAAAAAAAAAA\nhelp',
+			'sk-AAAA\0TAIL',
+			'sk-ключ-AAAAAAAAAAAA',
+		]) {
+			await expect(saveStoredKey(key, runner)).rejects.toThrow(/printable ASCII/);
+		}
+		expect(calls).toBe(0);
 	});
 
 	it('Linux secret-tool is used when available and skipped when not', async () => {

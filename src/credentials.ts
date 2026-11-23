@@ -73,12 +73,16 @@ async function saveMacOSKeychain(
 	provider: KeyProvider,
 ): Promise<void> {
 	// Keeping the secret out of argv prevents it from appearing in process listings.
-	// A bare -w makes `security` ask for the password and then a retype, so send it twice.
-	await runner(
-		'security',
-		['add-generic-password', '-s', KEYCHAIN_SERVICE, '-a', KEY_ACCOUNTS[provider], '-U', '-w'],
-		{ input: `${key}\n${key}\n` },
-	);
+	// A bare -w prompts on the terminal (ignoring stdin) and cuts input at 128
+	// characters, so send the whole command on stdin to `security -i` instead.
+	// `security -i` reads one line of at most 4095 bytes, and reads non-ASCII passwords back as hex.
+	if (!/^[\x21-\x7e]{1,1024}$/.test(key)) {
+		throw new Error('the key must be at most 1024 printable ASCII characters without spaces');
+	}
+	const quoted = `"${key.replace(/["\\]/g, '\\$&')}"`;
+	await runner('security', ['-i'], {
+		input: `add-generic-password -s ${KEYCHAIN_SERVICE} -a ${KEY_ACCOUNTS[provider]} -U -w ${quoted}\n`,
+	});
 }
 
 async function readSecretService(runner: Runner, provider: KeyProvider): Promise<string | null> {
